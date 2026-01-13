@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>ActiveSG URL 生成器</title>
+<style>
+/* ---------- 全局 ---------- */
+body {
+    font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+    max-width: 700px;
+    margin: 40px auto;
+    background-color: #fafafa;
+    color: #222;
+    line-height: 1.5;
+}
+
+/* ---------- 标题 ---------- */
+h2 {
+    text-align: center;
+    font-weight: 600;
+    color: #111;
+}
+
+/* ---------- 标签和输入 ---------- */
+label {
+    display: block;
+    margin-top: 20px;
+    font-weight: 500;
+}
+
+select,
+input[type="date"],
+textarea {
+    width: 100%;
+    padding: 8px 10px;
+    margin-top: 5px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 14px;
+    box-sizing: border-box;
+    transition: border-color 0.2s;
+}
+
+select:focus,
+input[type="date"]:focus,
+textarea:focus {
+    border-color: #0078d4;
+    outline: none;
+}
+
+/* ---------- 按钮 ---------- */
+button {
+    margin-top: 15px;
+    padding: 8px 16px;
+    font-size: 14px;
+    background-color: #0078d4;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+button:hover {
+    background-color: #005a9e;
+}
+
+/* ---------- 结果区域 ---------- */
+#result {
+    margin-top: 25px;
+    background-color: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 15px;
+    word-break: break-word;
+}
+
+#result textarea {
+    font-size: 14px;
+    padding: 6px 10px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    width: 100%;
+    height: 60px;
+    resize: none;
+    overflow-wrap: break-word;
+    word-break: break-all;
+    box-sizing: border-box;
+}
+
+/* ---------- 提示文字 ---------- */
+.hint {
+    font-size: 12px;
+    color: #666;
+    margin-top: 10px;
+}
+</style>
+</head>
+<body>
+
+<h2>ActiveSG URL 生成器（SGT +12天）</h2>
+
+<label>
+    日期（SGT）：
+    <input type="date" id="dateInput">
+</label>
+
+<label>
+    时间 1（24 小时制，整点，SGT）：
+    <select id="hourInput1">
+        <script>
+            for(let i=0;i<24;i++){
+                document.write(`<option value="${i}">${i}:00</option>`);
+            }
+        </script>
+    </select>
+</label>
+
+<label>
+    时间 2（可选，24 小时制，整点，SGT）：
+    <select id="hourInput2">
+        <option value="">-- 不选择 --</option>
+        <script>
+            for(let i=0;i<24;i++){
+                document.write(`<option value="${i}">${i}:00</option>`);
+            }
+        </script>
+    </select>
+</label>
+
+<button onclick="generateUrl()">生成 URL</button>
+
+<div class="hint">
+    说明：此工具使用新加坡时间（UTC+8）计算毫秒时间戳，延后 12 天。时间 2 可选。
+</div>
+
+<div id="result"></div>
+
+<script>
+function generateUrl() {
+    const dateValue = document.getElementById("dateInput").value;
+    const hour1Value = document.getElementById("hourInput1").value;
+    const hour2Value = document.getElementById("hourInput2").value;
+
+    if (!dateValue || hour1Value === "") {
+        alert("请填写日期和至少一个时间");
+        return;
+    }
+
+    const [year, month, day] = dateValue.split("-").map(Number);
+    const hour1 = Number(hour1Value);
+    const hour2 = hour2Value === "" ? null : Number(hour2Value);
+
+    function getTimestamp(hour){
+        const dateObj = new Date(year, month-1, day+12, hour,0,0);
+        return Date.UTC(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate(), dateObj.getHours()-8,0,0);
+    }
+
+    const ts1 = getTimestamp(hour1);
+    const ts2 = hour2!==null ? getTimestamp(hour2) : null;
+
+    // 拼接 URL，保证第二个 timeslot 规则正确
+    const baseUrl = "https://activesg.gov.sg/facility-bookings/activities/YLONatwvqJfikKOmB5N9U/venues/fU1NDT1wfMMSGcB2GUPst/subvenues";
+    let finalUrl = baseUrl + "?timeslot=" + ts1;
+    if(ts2 !== null){
+        finalUrl += "&amp;" + "timeslot=" + ts2;
+    }
+
+    function getSGTDateTime(hour){
+        const dateObj = new Date(year, month-1, day+12, hour,0,0);
+        return `${dateObj.getFullYear()}-${String(dateObj.getMonth()+1).padStart(2,'0')}-${String(dateObj.getDate()).padStart(2,'0')} ${String(dateObj.getHours()).padStart(2,'0')}:00`;
+    }
+
+    const sgtTime1 = getSGTDateTime(hour1);
+    const sgtTime2 = hour2!==null ? getSGTDateTime(hour2) : null;
+
+    document.getElementById("result").innerHTML =
+        `<strong>Court time: </strong> ${sgtTime1}` + 
+        (sgtTime2 ? `, ${sgtTime2}` : '') +
+        `<br><strong>Link: </strong>` +
+        `<textarea id="generatedLink" readonly>${finalUrl}</textarea>` +
+        `<br><button class="copy-btn" onclick="copyLink()">Copy Link</button>`;
+}
+
+function copyLink(){
+    const linkTextarea = document.getElementById("generatedLink");
+    linkTextarea.select();
+    linkTextarea.setSelectionRange(0,99999);
+    document.execCommand("copy");
+    alert("Link 已复制到剪贴板！");
+}
+</script>
+
+</body>
+</html>
